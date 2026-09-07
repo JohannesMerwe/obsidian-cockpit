@@ -2,7 +2,7 @@
 
 The keel workspace as a cockpit inside Obsidian: session context, keel verbs, handoff diff.
 
-**Obsidian plugin** · id `keel-cockpit` · status: KC-1 to KC-4 built (2026-09-07), not yet released · MIT · desktop only
+**Obsidian plugin** · id `keel-cockpit` · status: beta, not yet on the registry · MIT · desktop only
 
 keel keeps machine-local state in dotfolders that Obsidian hides. This plugin shows the
 workspace's `.keel/context.md` in a side pane, runs `keel status`, `doctor`, `start` and
@@ -79,8 +79,21 @@ Point a throwaway dev vault's `.obsidian/plugins/keel-cockpit/` at this director
 GitHub releases whose tag equals the `manifest.json` version; the workflow in
 `.github/workflows/release.yml` builds and attaches the artifacts. Beta installs through BRAT.
 
+## Install
+
+Until the plugin is on the community registry, install it with
+[BRAT](https://github.com/TfTHacker/obsidian42-brat): *Add beta plugin* →
+`JohannesMerwe/obsidian-cockpit`. Requires Obsidian 1.13.0 or later, and desktop Obsidian —
+the plugin runs a local binary, which mobile cannot do.
+
 ## Agent skills
 
-`agent/` will hold the same instructions in claude-skill and copilot-prompt formats, telling
-an agent what convention this plugin renders and what it must never do. Copy them into your
-agent's skills directory until keel links them for you.
+`agent/` holds the same instructions in two formats, telling an agent how to keep
+`.keel/context.md` in the shape this pane renders (the fixed headings, one `## State` line per
+project, `## Open questions` as links, a bumped `Updated:`), how to run the keel verbs, and
+what it must never write there (credentials, checkout paths, another project's line):
+
+- `agent/claude/keel-cockpit/SKILL.md` — copy the folder into `.claude/skills/`.
+- `agent/copilot/keel-cockpit.prompt.md` — copy into `.github/prompts/`.
+
+Keel links them for you once its skills linking lands.
