@@ -1,0 +1,10 @@
+{
+	"id": "keel-cockpit",
+	"name": "Keel Cockpit",
+	"version": "0.1.0",
+	"minAppVersion": "1.13.0",
+	"description": "Show a keel workspace's session context, run keel start, save and doctor from the vault, and surface the dotfolders Obsidian hides.",
+	"author": "Johannes Merwe",
+	"authorUrl": "https://github.com/JohannesMerwe",
+	"isDesktopOnly": false
+}
