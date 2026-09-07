@@ -1,8 +1,63 @@
-/*
+.keel-cockpit {
+	padding: var(--size-4-2) var(--size-4-3);
+	font-size: var(--font-ui-small);
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.keel-cockpit-header {
+	margin-bottom: var(--size-4-3);
+}
 
-If your plugin does not need CSS, delete this file.
+.keel-cockpit-title {
+	margin: 0 0 var(--size-2-1) 0;
+}
 
-*/
+.keel-cockpit-muted {
+	color: var(--text-muted);
+}
+
+.keel-cockpit-warn {
+	color: var(--text-warning);
+}
+
+.keel-cockpit-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-2-2);
+	margin-top: var(--size-2-3);
+}
+
+.keel-cockpit-section {
+	margin: var(--size-2-3) 0;
+	border-top: 1px solid var(--background-modifier-border);
+	padding-top: var(--size-2-2);
+}
+
+.keel-cockpit-section > summary {
+	cursor: pointer;
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+.keel-cockpit-section-body {
+	padding: var(--size-2-2) 0 0 var(--size-4-2);
+}
+
+.keel-cockpit-section-body p {
+	margin: var(--size-2-1) 0;
+}
+
+.keel-cockpit-section-title {
+	margin-bottom: var(--size-2-2);
+}
+
+.keel-cockpit-links,
+.keel-cockpit-names {
+	margin: 0;
+	padding-left: var(--size-4-4);
+}
+
+.keel-cockpit-missing {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+}

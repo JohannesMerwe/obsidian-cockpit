@@ -3,6 +3,7 @@ import { createClient, findBinary, type Envelope, type KeelClient } from './core
 import { findWorkspace, join, type VaultFiles, type Workspace } from './core/workspace';
 import { nodeEnv, nodeExec } from './shell/exec';
 import { DEFAULT_DATA, normaliseData, type CockpitData } from './settings';
+import { CockpitView, VIEW_TYPE } from './ui/view';
 
 export default class KeelCockpitPlugin extends Plugin {
 	settings: CockpitData = DEFAULT_DATA;
@@ -17,6 +18,11 @@ export default class KeelCockpitPlugin extends Plugin {
 		this.registerEvent(this.app.vault.on('delete', (f) => this.forgetManifest(f.path)));
 		this.registerEvent(this.app.vault.on('create', (f) => this.forgetManifest(f.path)));
 
+		this.registerView(VIEW_TYPE, (leaf) => new CockpitView(leaf, this));
+		this.addRibbonIcon('gauge', 'Open keel cockpit', () => void this.activateView());
+		this.addCommand({ id: 'open', name: 'Open cockpit', callback: () => void this.activateView() });
+		this.addCommand({ id: 'refresh', name: 'Refresh cockpit', callback: () => this.app.workspace.trigger('keel-cockpit:refresh') });
+
 		this.addCommand({
 			id: 'status',
 			name: 'Show keel status',
@@ -27,6 +33,14 @@ export default class KeelCockpitPlugin extends Plugin {
 				return true;
 			},
 		});
+	}
+
+	async activateView(): Promise<void> {
+		const existing = this.app.workspace.getLeavesOfType(VIEW_TYPE)[0];
+		const leaf = existing ?? this.app.workspace.getRightLeaf(false);
+		if (!leaf) return;
+		if (!existing) await leaf.setViewState({ type: VIEW_TYPE, active: true });
+		await this.app.workspace.revealLeaf(leaf);
 	}
 
 	// ---- C1 detection --------------------------------------------------------------------
