@@ -4,9 +4,18 @@ import { findWorkspace, join, type VaultFiles, type Workspace } from './core/wor
 import { nodeEnv, nodeExec } from './shell/exec';
 import { DEFAULT_DATA, normaliseData, type CockpitData } from './settings';
 import { CockpitView, VIEW_TYPE } from './ui/view';
+import { ConfirmSaveModal } from './ui/confirm';
+import { checkoutsFor } from './core/repos';
+
+export interface VerbResult {
+	envelope: Envelope;
+	/** Local time the verb finished, HH:MM. */
+	when: string;
+}
 
 export default class KeelCockpitPlugin extends Plugin {
 	settings: CockpitData = DEFAULT_DATA;
+	lastResult: VerbResult | null = null;
 	/** keel.json contents by vault path, filled lazily so C1 detection can stay synchronous. */
 	private manifests = new Map<string, string | null>();
 
@@ -23,16 +32,22 @@ export default class KeelCockpitPlugin extends Plugin {
 		this.addCommand({ id: 'open', name: 'Open cockpit', callback: () => void this.activateView() });
 		this.addCommand({ id: 'refresh', name: 'Refresh cockpit', callback: () => this.app.workspace.trigger('keel-cockpit:refresh') });
 
-		this.addCommand({
-			id: 'status',
-			name: 'Show keel status',
-			checkCallback: (checking) => {
-				const ws = this.currentWorkspace();
-				if (!ws) return false;
-				if (!checking) void this.runVerb(ws, ['status']).then((env) => this.notify(env, ws));
-				return true;
-			},
-		});
+		const verb = (id: string, name: string, run: (ws: Workspace) => Promise<unknown>): void => {
+			this.addCommand({
+				id,
+				name,
+				checkCallback: (checking) => {
+					const ws = this.currentWorkspace();
+					if (!ws) return false;
+					if (!checking) void run(ws);
+					return true;
+				},
+			});
+		};
+		verb('status', 'Run keel status', (ws) => this.runStatus(ws));
+		verb('doctor', 'Run keel doctor', (ws) => this.runDoctor(ws));
+		verb('start', 'Run keel start', (ws) => this.runStart(ws));
+		verb('save', 'Run keel save', (ws) => this.runSave(ws));
 	}
 
 	async activateView(): Promise<void> {
@@ -103,9 +118,53 @@ export default class KeelCockpitPlugin extends Plugin {
 		return client.run(this.absolutePath(ws.root), args);
 	}
 
-	notify(env: Envelope, ws: Workspace): void {
-		if (env.ok) new Notice(`keel ${env.command}: ok (${ws.name})`);
+	/** Run a verb in a directory, remember the result, show it in the pane and as a notice. */
+	private async verb(cwd: string, args: string[]): Promise<Envelope> {
+		const client = this.client();
+		const env: Envelope = client
+			? await client.run(cwd, args)
+			: { ok: false, command: args.join(' '), error: { kind: 'binary', message: 'keel binary not found on PATH; set its path in the plugin settings' } };
+		const now = new Date();
+		this.lastResult = { envelope: env, when: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` };
+		if (env.ok) new Notice(`keel ${env.command}: ok`);
 		else new Notice(`keel ${env.command} failed: ${env.error.message}`, 8000);
+		await this.activateView();
+		this.app.workspace.trigger('keel-cockpit:result');
+		return env;
+	}
+
+	runStatus(ws: Workspace): Promise<Envelope> {
+		return this.verb(this.absolutePath(ws.root), ['status']);
+	}
+
+	runDoctor(ws: Workspace): Promise<Envelope> {
+		return this.verb(this.absolutePath(ws.root), ['doctor']);
+	}
+
+	async runStart(ws: Workspace): Promise<Envelope> {
+		const env = await this.verb(this.absolutePath(ws.root), ['start']);
+		this.app.workspace.trigger('keel-cockpit:refresh');
+		return env;
+	}
+
+	/** `keel save` runs inside a checkout; the path comes from `keel repo list`, and the user confirms first. */
+	async runSave(ws: Workspace): Promise<Envelope | null> {
+		const list = await this.runVerb(ws, ['repo', 'list']);
+		if (!list.ok) {
+			new Notice(`keel repo list failed: ${list.error.message}`, 8000);
+			return list;
+		}
+		const checkouts = checkoutsFor(list.data, ws.project);
+		if (checkouts.length === 0) {
+			new Notice('No bound checkout to save in; run keel doctor', 8000);
+			return null;
+		}
+		const choice = await new ConfirmSaveModal(this.app, checkouts).ask();
+		if (!choice) return null;
+		const args = choice.message.trim() ? ['save', choice.message.trim()] : ['save'];
+		const env = await this.verb(choice.checkout.path, args);
+		if (env.ok && typeof env.data === 'object' && env.data !== null) (env.data as Record<string, unknown>).checkout ??= choice.checkout.path;
+		return env;
 	}
 
 	contextPath(ws: Workspace): string {

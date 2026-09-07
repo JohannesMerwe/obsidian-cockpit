@@ -2,6 +2,8 @@ import { ItemView, MarkdownRenderer, Notice, TFile, type WorkspaceLeaf } from 'o
 import type KeelCockpitPlugin from '../main';
 import { addOpenQuestionsHeading, isOpenQuestionsHeading, parseContext, type ContextFile, type Link, type OpenQuestion } from '../core/context';
 import { unansweredQuestions, type QuestionBlock } from '../core/questions';
+import { summarise } from '../core/summary';
+import type { Envelope } from '../core/keel';
 import { join, type Workspace } from '../core/workspace';
 
 export const VIEW_TYPE = 'keel-cockpit';
@@ -15,6 +17,7 @@ export class CockpitView extends ItemView {
 	/** The workspace the pane shows; kept when the active file has none so the pane stays useful. */
 	private ws: Workspace | null = null;
 	private contextMtime = 0;
+	private resultEl: HTMLElement | null = null;
 	private rendering = false;
 	private dirty = false;
 
@@ -38,6 +41,7 @@ export class CockpitView extends ItemView {
 		this.registerEvent(this.app.workspace.on('active-leaf-change', () => void this.follow()));
 		this.registerEvent(this.app.workspace.on('keel-cockpit:workspace-changed', () => void this.follow(true)));
 		this.registerEvent(this.app.workspace.on('keel-cockpit:refresh', () => void this.refresh()));
+		this.registerEvent(this.app.workspace.on('keel-cockpit:result', () => this.renderResult()));
 		this.registerInterval(window.setInterval(() => void this.pollContext(), 30_000));
 		this.registerDomEvent(this.contentEl, 'click', (e) => this.onClick(e));
 		await this.follow(true);
@@ -84,6 +88,8 @@ export class CockpitView extends ItemView {
 			return;
 		}
 		this.renderHeader(root, ws);
+		this.resultEl = root.createDiv({ cls: 'keel-cockpit-result' });
+		this.renderResult();
 		const contextPath = this.plugin.contextPath(ws);
 		const adapter = this.app.vault.adapter;
 		const stat = await adapter.stat(contextPath);
@@ -112,7 +118,43 @@ export class CockpitView extends ItemView {
 		const bin = this.plugin.keelBinary();
 		meta.createDiv({ text: bin ? `keel: ${bin}` : 'keel binary not found; set its path in settings', cls: bin ? '' : 'keel-cockpit-warn' });
 		const actions = head.createDiv({ cls: 'keel-cockpit-actions' });
+		const verb = (label: string, run: () => Promise<unknown>): void => {
+			const btn = actions.createEl('button', { text: label });
+			btn.disabled = !bin;
+			btn.addEventListener('click', () => {
+				btn.disabled = true;
+				void run().finally(() => (btn.disabled = !this.plugin.keelBinary()));
+			});
+		};
+		verb('Status', () => this.plugin.runStatus(ws));
+		verb('Doctor', () => this.plugin.runDoctor(ws));
+		verb('Start', () => this.plugin.runStart(ws));
+		verb('Save…', () => this.plugin.runSave(ws));
 		actions.createEl('button', { text: 'Refresh' }).addEventListener('click', () => void this.refresh());
+	}
+
+	// ---- last verb result ---------------------------------------------------------------------
+
+	private renderResult(): void {
+		const el = this.resultEl;
+		if (!el) return;
+		el.empty();
+		const last = this.plugin.lastResult;
+		if (!last) return;
+		const env: Envelope = last.envelope;
+		const head = el.createDiv({ cls: 'keel-cockpit-result-head' });
+		head.createSpan({ cls: `keel-cockpit-badge keel-cockpit-badge-${env.ok ? 'ok' : 'error'}`, text: env.ok ? 'ok' : 'failed' });
+		head.createSpan({ text: ` keel ${env.command}` });
+		head.createSpan({ cls: 'keel-cockpit-muted', text: ` · ${last.when}${env.ok && env.seq !== undefined ? ` · seq ${env.seq}` : ''}` });
+		const table = el.createEl('table', { cls: 'keel-cockpit-rows' });
+		for (const row of summarise(env)) {
+			const tr = table.createEl('tr', { cls: row.level ? `keel-cockpit-level-${row.level}` : '' });
+			tr.createEl('th', { text: row.label });
+			tr.createEl('td', { text: row.value });
+		}
+		const raw = el.createEl('details', { cls: 'keel-cockpit-raw' });
+		raw.createEl('summary', { text: 'Raw JSON' });
+		raw.createEl('pre', { text: JSON.stringify(env, null, 2) });
 	}
 
 	// ---- context.md -----------------------------------------------------------------------

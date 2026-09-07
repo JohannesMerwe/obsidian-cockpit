@@ -61,3 +61,67 @@
 	align-items: center;
 	gap: var(--size-2-2);
 }
+
+.keel-cockpit-result {
+	margin: var(--size-4-2) 0;
+}
+
+.keel-cockpit-result-head {
+	margin-bottom: var(--size-2-2);
+}
+
+.keel-cockpit-badge {
+	display: inline-block;
+	padding: 0 var(--size-2-2);
+	border-radius: var(--radius-s);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-semibold);
+	background: var(--background-modifier-border);
+	color: var(--text-normal);
+}
+
+.keel-cockpit-badge-ok {
+	background: var(--background-modifier-success);
+}
+
+.keel-cockpit-badge-error {
+	background: var(--background-modifier-error);
+	color: var(--text-on-accent);
+}
+
+.keel-cockpit-rows {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.keel-cockpit-rows th {
+	text-align: left;
+	vertical-align: top;
+	font-weight: var(--font-semibold);
+	padding: var(--size-2-1) var(--size-2-3) var(--size-2-1) 0;
+	white-space: nowrap;
+	color: var(--text-muted);
+}
+
+.keel-cockpit-rows td {
+	padding: var(--size-2-1) 0;
+	word-break: break-word;
+}
+
+.keel-cockpit-level-ok th {
+	color: var(--color-green);
+}
+
+.keel-cockpit-level-warn th {
+	color: var(--color-orange);
+}
+
+.keel-cockpit-level-error th {
+	color: var(--color-red);
+}
+
+.keel-cockpit-raw pre {
+	max-height: 16em;
+	overflow: auto;
+	font-size: var(--font-ui-smaller);
+}
