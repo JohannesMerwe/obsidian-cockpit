@@ -125,3 +125,32 @@
 	overflow: auto;
 	font-size: var(--font-ui-smaller);
 }
+
+.keel-cockpit-diff {
+	margin: 0;
+	padding: var(--size-2-2);
+	font-size: var(--font-ui-smaller);
+	white-space: pre-wrap;
+	word-break: break-word;
+	background: var(--background-secondary);
+	border-radius: var(--radius-s);
+}
+
+.keel-cockpit-diff-hunk {
+	color: var(--text-faint);
+	margin-top: var(--size-2-2);
+}
+
+.keel-cockpit-diff-add {
+	background: rgba(var(--color-green-rgb), 0.15);
+	color: var(--text-normal);
+}
+
+.keel-cockpit-diff-del {
+	background: rgba(var(--color-red-rgb), 0.15);
+	color: var(--text-muted);
+}
+
+.keel-cockpit-diff-ctx {
+	color: var(--text-muted);
+}

@@ -6,6 +6,9 @@ import { DEFAULT_DATA, normaliseData, type CockpitData } from './settings';
 import { CockpitView, VIEW_TYPE } from './ui/view';
 import { ConfirmSaveModal } from './ui/confirm';
 import { checkoutsFor } from './core/repos';
+import { readUpdated } from './core/context';
+import { pickBaseline, recordSnapshot, type Baseline } from './core/snapshots';
+import { gitVersions } from './shell/git';
 
 export interface VerbResult {
 	envelope: Envelope;
@@ -169,6 +172,29 @@ export default class KeelCockpitPlugin extends Plugin {
 
 	contextPath(ws: Workspace): string {
 		return join(ws.root, '.keel/context.md');
+	}
+
+	// ---- handoff diff (§C5) -------------------------------------------------------------------
+
+	private snapshotKey(ws: Workspace): string {
+		return ws.root === '' ? '.' : ws.root;
+	}
+
+	/** Remember the file as read, rotating when its Updated date moved on. */
+	async recordContext(ws: Workspace, text: string): Promise<void> {
+		const key = this.snapshotKey(ws);
+		const r = recordSnapshot(this.settings.snapshots[key] ?? {}, readUpdated(text), text);
+		if (!r.changed) return;
+		this.settings.snapshots[key] = r.pair;
+		await this.saveData(this.settings);
+	}
+
+	/** The version to diff against: from git when the tree is a repo, else the stored snapshot. */
+	async contextBaseline(ws: Workspace, text: string): Promise<Baseline | null> {
+		const date = readUpdated(text);
+		const cwd = this.absolutePath(ws.root);
+		const history = await gitVersions(nodeExec, cwd, this.absolutePath(this.contextPath(ws)), readUpdated, this.settings.timeoutSeconds * 1000);
+		return pickBaseline(history, this.settings.snapshots[this.snapshotKey(ws)] ?? {}, date);
 	}
 }
 

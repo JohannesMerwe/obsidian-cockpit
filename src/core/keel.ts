@@ -43,9 +43,9 @@ export interface BinaryLookup {
 }
 
 /** Candidate paths in the order they are tried: PATH, then the setting, then well-known dirs. */
-export function binaryCandidates(l: BinaryLookup): string[] {
+export function binaryCandidates(l: BinaryLookup, base = 'keel'): string[] {
 	const sep = l.platform === 'win32' ? ';' : ':';
-	const name = l.platform === 'win32' ? 'keel.exe' : 'keel';
+	const name = l.platform === 'win32' ? base + '.exe' : base;
 	const expand = (p: string): string => (p.startsWith('~/') ? l.home + p.slice(1) : p);
 	const out: string[] = [];
 	for (const dir of l.pathEnv.split(sep)) if (dir) out.push(expand(dir) + '/' + name);
@@ -88,7 +88,8 @@ export function parseEnvelope(stdout: string, command: string): Envelope | null 
 export function toEnvelope(result: ExecResult, command: string, timeoutMs: number): Envelope {
 	if (result.failed) return { ok: false, command, error: { kind: 'exec', message: result.failed } };
 	if (result.timedOut) {
-		return { ok: false, command, error: { kind: 'timeout', message: `keel ${command} did not finish within ${Math.round(timeoutMs / 1000)} s` } };
+		const within = timeoutMs >= 1000 ? `${Math.round(timeoutMs / 1000)} s` : `${timeoutMs} ms`;
+		return { ok: false, command, error: { kind: 'timeout', message: `keel ${command} did not finish within ${within}` } };
 	}
 	const parsed = parseEnvelope(result.stdout, command);
 	if (parsed) return parsed;

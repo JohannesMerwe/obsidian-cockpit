@@ -4,6 +4,7 @@ import { addOpenQuestionsHeading, isOpenQuestionsHeading, parseContext, type Con
 import { unansweredQuestions, type QuestionBlock } from '../core/questions';
 import { summarise } from '../core/summary';
 import type { Envelope } from '../core/keel';
+import { diffLines, diffStats, toHunks } from '../core/diff';
 import { join, type Workspace } from '../core/workspace';
 
 export const VIEW_TYPE = 'keel-cockpit';
@@ -103,6 +104,10 @@ export class CockpitView extends ItemView {
 			}
 		}
 		this.renderContext(root, ws, contextPath, text);
+		if (text !== null) {
+			await this.plugin.recordContext(ws, text);
+			await this.renderDiff(root, ws, text);
+		}
 		await this.renderQuestions(root, ws);
 		await this.renderDotfolders(root, ws);
 	}
@@ -228,6 +233,38 @@ export class CockpitView extends ItemView {
 			new Notice(`Keel cockpit: cannot update ${contextPath}: ${e instanceof Error ? e.message : String(e)}`);
 		}
 		await this.refresh();
+	}
+
+	// ---- handoff diff ----------------------------------------------------------------------
+
+	private async renderDiff(root: HTMLElement, ws: Workspace, text: string): Promise<void> {
+		const details = root.createEl('details', { cls: 'keel-cockpit-section' });
+		details.open = true;
+		const summary = details.createEl('summary', { text: 'Handoff diff' });
+		const body = details.createDiv({ cls: 'keel-cockpit-section-body' });
+		const base = await this.plugin.contextBaseline(ws, text);
+		if (!base) {
+			body.createEl('p', { cls: 'keel-cockpit-muted', text: 'No earlier version yet. The diff appears once context.md has been seen under a previous Updated date, or from git history when the tree is a repo.' });
+			return;
+		}
+		const lines = diffLines(base.text, text);
+		const stats = diffStats(lines);
+		const current = parseContext(text).updated ?? 'undated';
+		summary.setText(`Handoff diff · ${base.date ?? 'undated'} → ${current} · +${stats.added} −${stats.removed}`);
+		body.createEl('p', { cls: 'keel-cockpit-muted', text: base.source === 'git' ? 'From git history.' : 'From the copy kept in plugin data.' });
+		const hunks = toHunks(lines);
+		if (hunks.length === 0) {
+			body.createEl('p', { cls: 'keel-cockpit-muted', text: 'No changes.' });
+			return;
+		}
+		const pre = body.createEl('pre', { cls: 'keel-cockpit-diff' });
+		for (const h of hunks) {
+			pre.createDiv({ cls: 'keel-cockpit-diff-hunk', text: `@@ ${h.oldStart} → ${h.newStart} @@` });
+			for (const l of h.lines) {
+				const mark = l.kind === 'add' ? '+' : l.kind === 'del' ? '−' : ' ';
+				pre.createDiv({ cls: `keel-cockpit-diff-${l.kind}`, text: `${mark} ${l.text}` });
+			}
+		}
 	}
 
 	// ---- unanswered [!question] blocks in the workspace --------------------------------------

@@ -1,14 +1,5 @@
 import { DEFAULT_TIMEOUT_MS } from './core/keel';
-
-export interface Snapshot {
-	date: string;
-	text: string;
-}
-
-export interface SnapshotPair {
-	latest?: Snapshot;
-	previous?: Snapshot;
-}
+import type { SnapshotPair } from './core/snapshots';
 
 /** The whole of data.json: settings plus the context.md snapshots (§C5 handoff diff). */
 export interface CockpitData {
