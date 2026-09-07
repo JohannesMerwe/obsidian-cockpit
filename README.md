@@ -2,13 +2,39 @@
 
 The keel workspace as a cockpit inside Obsidian: session context, keel verbs, handoff diff.
 
-**Obsidian plugin** · id `keel-cockpit` · status: scaffold (2026-09-07), no features yet · MIT
+**Obsidian plugin** · id `keel-cockpit` · status: KC-1 to KC-4 built (2026-09-07), not yet released · MIT · desktop only
 
 keel keeps machine-local state in dotfolders that Obsidian hides. This plugin shows the
 workspace's `.keel/context.md` in a side pane, runs `keel status`, `doctor`, `start` and
 `save` from the vault and shows their JSON results, lists what the last agent session changed
 in the context file, and shows the open questions left for you. Desktop only. Does nothing in
 a vault without `keel.json`.
+
+## What it does
+
+- **Context pane** (ribbon icon, or *Open cockpit*): the `.keel/context.md` of the workspace
+  your active note is in, one collapsible section per heading, with the items under
+  *Open questions* as links. Read-only, except a button that adds that heading when missing.
+- **Unanswered questions**: every `[!question]` block in the workspace without a ticked box,
+  as a link to its line. Until `keel questions` exists the plugin scans the markdown itself.
+- **Verbs**: buttons and commands for `keel status`, `keel doctor`, `keel start` and
+  `keel save`. Each runs the binary with `--json` and a timeout; the result is rendered from
+  the envelope, with the raw JSON underneath. Save asks first: which checkout (from
+  `keel repo list`, your note's project first) and what changed.
+- **Handoff diff**: what changed in context.md since the previous `Updated:` date, from git
+  when the vault tree is a repository, else from a copy the plugin keeps in its data.
+- **Dotfolders**: the names in `.keel/` and `.keel/credentials/`. Never their contents, and
+  never `.code/`.
+
+Without a `keel.json` above the active note the pane says so and nothing else happens. The
+plugin runs only the local `keel` (and `git` for the diff); no network, no telemetry.
+
+### Settings
+
+| Setting | Default | Meaning |
+|---|---|---|
+| Keel binary | empty | Full path to `keel`. Tried after PATH, which is often minimal for a desktop app; then `/opt/homebrew/bin`, `/usr/local/bin`, `~/go/bin`, `~/.local/bin`. |
+| Timeout | 20 s | How long to wait for a keel command. |
 
 ## Part of a family
 
@@ -41,7 +67,12 @@ npm install
 npm run dev      # esbuild watch → main.js
 npm run build    # tsc + esbuild production
 npm run lint
+npm test         # vitest over src/core
 ```
+
+`src/core/` is pure TypeScript (detection, envelope, context parser, question scan, summary
+rows, diff, snapshots); `src/shell/` holds the Node adapters (exec, git); `src/ui/` the pane
+and the confirm modal.
 
 Point a throwaway dev vault's `.obsidian/plugins/keel-cockpit/` at this directory (or symlink
 `main.js`, `manifest.json`, `styles.css`) and use the hot-reload plugin. Releases are
