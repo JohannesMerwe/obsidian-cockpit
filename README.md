@@ -16,7 +16,9 @@ a vault without `keel.json`.
   your active note is in, one collapsible section per heading, with the items under
   *Open questions* as links. Read-only, except a button that adds that heading when missing.
 - **Unanswered questions**: every `[!question]` block in the workspace without a ticked box,
-  as a link to its line. Until `keel questions` exists the plugin scans the markdown itself.
+  as a link to its line. The list comes from `keel questions --json`, one process with the
+  CLI's own view of the workspace; when keel is missing or too old to know the verb the
+  plugin scans the vault's markdown itself instead and says which of the two you are seeing.
 - **Verbs**: buttons and commands for `keel status`, `keel doctor`, `keel start` and
   `keel save`. Each runs the binary with `--json` and a timeout; the result is rendered from
   the envelope, with the raw JSON underneath. Save asks first: which checkout (from
@@ -70,9 +72,9 @@ npm run lint
 npm test         # vitest over src/core
 ```
 
-`src/core/` is pure TypeScript (detection, envelope, context parser, question scan, summary
-rows, diff, snapshots); `src/shell/` holds the Node adapters (exec, git); `src/ui/` the pane
-and the confirm modal.
+`src/core/` is pure TypeScript (detection, envelope, context parser, the question list and its
+scan fallback, summary rows, diff, snapshots); `src/shell/` holds the Node adapters (exec,
+git); `src/ui/` the pane and the confirm modal.
 
 Point a throwaway dev vault's `.obsidian/plugins/keel-cockpit/` at this directory (or symlink
 `main.js`, `manifest.json`, `styles.css`) and use the hot-reload plugin. Releases are

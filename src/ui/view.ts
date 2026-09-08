@@ -1,17 +1,13 @@
 import { ItemView, MarkdownRenderer, Notice, TFile, type WorkspaceLeaf } from 'obsidian';
 import type KeelCockpitPlugin from '../main';
 import { addOpenQuestionsHeading, isOpenQuestionsHeading, parseContext, type ContextFile, type Link, type OpenQuestion } from '../core/context';
-import { unansweredQuestions, type QuestionBlock } from '../core/questions';
+import { fallbackReason, fromScan, questionsFromEnvelope, sortQuestions, unansweredQuestions, type FoundQuestion, type QuestionList } from '../core/questions';
 import { summarise } from '../core/summary';
 import type { Envelope } from '../core/keel';
 import { diffLines, diffStats, toHunks } from '../core/diff';
 import { join, type Workspace } from '../core/workspace';
 
 export const VIEW_TYPE = 'keel-cockpit';
-
-interface FoundQuestion extends QuestionBlock {
-	path: string;
-}
 
 export class CockpitView extends ItemView {
 	navigation = false;
@@ -267,27 +263,49 @@ export class CockpitView extends ItemView {
 		}
 	}
 
-	// ---- unanswered [!question] blocks in the workspace --------------------------------------
+	// ---- unanswered questions in the workspace -----------------------------------------------
 
 	private async renderQuestions(root: HTMLElement, ws: Workspace): Promise<void> {
 		const details = root.createEl('details', { cls: 'keel-cockpit-section' });
 		details.open = true;
 		const summary = details.createEl('summary', { text: 'Unanswered questions in this workspace' });
 		const body = details.createDiv({ cls: 'keel-cockpit-section-body' });
-		const found = await this.scanWorkspace(ws);
-		summary.setText(`Unanswered questions in this workspace (${found.length})`);
-		if (found.length === 0) {
+		const list = await this.questionList(ws);
+		summary.setText(`Unanswered questions in this workspace (${list.questions.length})`);
+		body.createEl('p', {
+			cls: 'keel-cockpit-muted',
+			text: list.source === 'keel' ? 'From keel questions.' : `From the vault scan — ${list.reason ?? 'keel questions unavailable'}.`,
+		});
+		if (list.questions.length === 0) {
 			body.createEl('p', { cls: 'keel-cockpit-muted', text: 'None' });
 			return;
 		}
 		const ul = body.createEl('ul', { cls: 'keel-cockpit-links' });
-		for (const q of found) {
-			const li = ul.createEl('li');
-			const a = li.createEl('a', { text: `${q.id || '?'} ${q.title}`, cls: 'internal-link' });
-			a.dataset.path = q.path;
+		for (const q of list.questions) this.renderFoundQuestion(ul.createEl('li'), ws, q);
+	}
+
+	private renderFoundQuestion(li: HTMLElement, ws: Workspace, q: FoundQuestion): void {
+		const label = `${q.id || '?'} ${q.title}`.trim();
+		const vaultPath = join(ws.root, q.path);
+		if (this.app.vault.getFileByPath(vaultPath) instanceof TFile) {
+			const a = li.createEl('a', { text: label, cls: 'internal-link' });
+			a.dataset.path = vaultPath;
 			a.dataset.line = String(q.line);
-			li.createSpan({ cls: 'keel-cockpit-muted', text: ` · ${q.path.slice(ws.root === '' ? 0 : ws.root.length + 1)}` });
+		} else {
+			li.createSpan({ text: label });
 		}
+		li.createSpan({ cls: 'keel-cockpit-muted', text: ` · ${q.path}` });
+		if (q.blocks.length > 0) li.createSpan({ cls: 'keel-cockpit-muted', text: ` · blocks ${q.blocks.join(', ')}` });
+		const context = q.context.join(' ').trim();
+		if (context) li.setAttribute('title', context);
+	}
+
+	/** `keel questions` when it answers, else the `[!question]` scan (§C2). */
+	private async questionList(ws: Workspace): Promise<QuestionList> {
+		const env = await this.plugin.runQuestions(ws);
+		const fromKeel = questionsFromEnvelope(env);
+		if (fromKeel) return { source: 'keel', questions: fromKeel };
+		return { source: 'scan', questions: await this.scanWorkspace(ws), reason: fallbackReason(env) };
 	}
 
 	private async scanWorkspace(ws: Workspace): Promise<FoundQuestion[]> {
@@ -297,9 +315,9 @@ export class CockpitView extends ItemView {
 		for (const f of files) {
 			const text = await this.app.vault.cachedRead(f);
 			if (!text.includes('[!question]')) continue;
-			for (const q of unansweredQuestions(text)) out.push({ ...q, path: f.path });
+			for (const q of unansweredQuestions(text)) out.push(fromScan(f.path.slice(prefix.length), q));
 		}
-		return out.sort((a, b) => a.path.localeCompare(b.path) || a.line - b.line);
+		return sortQuestions(out);
 	}
 
 	// ---- dotfolders: names only ------------------------------------------------------------

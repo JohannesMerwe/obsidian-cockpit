@@ -174,6 +174,11 @@ export default class KeelCockpitPlugin extends Plugin {
 		return join(ws.root, '.keel/context.md');
 	}
 
+	/** `keel questions` in the workspace root; failures come back as envelopes, never thrown (§C2). */
+	runQuestions(ws: Workspace): Promise<Envelope> {
+		return this.runVerb(ws, ['questions']);
+	}
+
 	// ---- handoff diff (§C5) -------------------------------------------------------------------
 
 	private snapshotKey(ws: Workspace): string {
