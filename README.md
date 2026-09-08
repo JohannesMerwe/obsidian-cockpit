@@ -93,7 +93,8 @@ the plugin runs a local binary, which mobile cannot do.
 project, `## Open questions` as links, a bumped `Updated:`), how to run the keel verbs, and
 what it must never write there (credentials, checkout paths, another project's line):
 
-- `agent/claude/keel-cockpit/SKILL.md` — copy the folder into `.claude/skills/`.
-- `agent/copilot/keel-cockpit.prompt.md` — copy into `.github/prompts/`.
-
-Keel links them for you once its skills linking lands.
+- `agent/claude/keel-cockpit/SKILL.md` — on a machine where this repo is a declared checkout,
+  `keel start` links it into `~/.claude/skills/` and `keel stop` unlinks it (keel
+  0.1, KEEL-42). Without keel, copy the folder into `.claude/skills/`.
+- `agent/copilot/keel-cockpit.prompt.md` — copy into `.github/prompts/`; keel does not link
+  Copilot prompts yet (where they belong on a machine is an open question).
